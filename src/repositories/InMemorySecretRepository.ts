@@ -5,7 +5,7 @@ export default class InMemorySecretRepository implements SecretRepository {
   private readonly secrets = new Map<string, Secret>();
 
   public async save(secret: Secret): Promise<Secret> {
-    this.secrets.set(secret.id, secret);
+    this.secrets.set(secret.getId(), secret);
     return secret;
   }
 
@@ -14,8 +14,8 @@ export default class InMemorySecretRepository implements SecretRepository {
   }
 
   public async update(secret: Secret): Promise<void> {
-    if (this.secrets.has(secret.id)) {
-      this.secrets.set(secret.id, secret);
+    if (this.secrets.has(secret.getId())) {
+      this.secrets.set(secret.getId(), secret);
     }
   }
 
