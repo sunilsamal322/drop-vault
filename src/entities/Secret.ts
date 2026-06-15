@@ -8,6 +8,7 @@ interface SecretProps {
   authTag: string;
   createdAt: Date;
   viewCount: number;
+  passwordHash?: string;
   expiresAt?: Date;
   maxViews?: number;
 }
@@ -32,7 +33,11 @@ export default class Secret {
     return this.props.id;
   }
 
-  public getEncryptedPayload() {
+  public getType(): SecretTypeEnum {
+    return this.props.type;
+  }
+
+  public getEncryptedPayload(): EncryptedPayload {
     return {
       encryptedContent: this.props.encryptedContent,
       iv: this.props.iv,
@@ -40,12 +45,28 @@ export default class Secret {
     };
   }
 
-  public incrementViewCount(): void {
-    this.props.viewCount++;
+  public getCreatedAt(): Date {
+    return this.props.createdAt;
+  }
+
+  public getExpiresAt(): Date | undefined {
+    return this.props.expiresAt;
+  }
+
+  public getMaxViews(): number | undefined {
+    return this.props.maxViews;
   }
 
   public getViewCount(): number {
     return this.props.viewCount;
+  }
+
+  public getPasswordHash(): string | undefined {
+    return this.props.passwordHash;
+  }
+
+  public incrementViewCount(): void {
+    this.props.viewCount++;
   }
 
   public hasExceededViewLimit(): boolean {

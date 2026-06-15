@@ -1,34 +1,57 @@
-import Secret from "./entities/Secret.js";
-import { SecretTypeEnum } from "./enums/SecretType.js";
-import AESEncryptionProvider from "./providers/AESEncryptionProvider.js";
-import Base64EncryptionProvider from "./providers/Base64EncryptionProvider.js";
-import InMemorySecretRepository from "./repositories/InMemorySecretRepository.js";
+import "dotenv/config";
+import express from "express";
+import { env } from "./configs/env.js";
+import { postgres } from "./database/postgres.js";
+import SecretController from "./controllers/SecretController.js";
+import secretRoutes from "./routes/secretRoutes.js";
 import SecretService from "./services/SecretService.js";
+import PostgresSecretRepository from "./repositories/PostgresSecretRepository.js";
+import AESEncryptionProvider from "./providers/AESEncryptionProvider.js";
+import BcryptPasswordHasher from "./providers/BcryptPasswordHasher.js";
+import errorHandler from "./middlewares/ErrorHandler.js";
+
+const app = express();
+
+app.use(express.json());
+
+const repository = new PostgresSecretRepository(postgres);
+const encryptionProvider = new AESEncryptionProvider(env.ENCRYPTION_KEY!);
+const passwordHasher = new BcryptPasswordHasher();
 
 const secretService = new SecretService(
-  new InMemorySecretRepository(),
-  new AESEncryptionProvider("Testing key"),
+  repository,
+  encryptionProvider,
+  passwordHasher,
 );
 
-const data = await secretService.save({
-  type: SecretTypeEnum.TEXT,
-  content: "My Message",
-  expiresAt: new Date(Date.now() + 1000 * 1), // Expires in 1 second
-  maxViews: 2,
+const secretController = new SecretController(secretService);
+
+app.use("/api/secrets", secretRoutes(secretController));
+
+app.get("/health", (_, res) => {
+  res.json({
+    status: "ok",
+  });
 });
 
-console.log("Saved secret:", data);
+app.use(errorHandler);
 
-const retrievedSecret1 = await secretService.getById(data.id);
-console.log("Retrieved secret:", retrievedSecret1);
+const PORT = env.PORT;
 
-await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait for 2 seconds
+async function bootstrap(): Promise<void> {
+  try {
+    await postgres.query("SELECT 1");
 
-const retrievedSecret2 = await secretService.getById(data.id);
-console.log("Retrieved secret:", retrievedSecret2);
+    console.log("Database connected");
 
-// await secretService.deleteById(data.id);
-// console.log("Deleted secret with ID", data.id);
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to connect to database", error);
 
-// const deletedSecret = await secretService.getById(data.id);
-// console.log("Trying to retrieve deleted secret:", deletedSecret);
+    process.exit(1);
+  }
+}
+
+bootstrap();
