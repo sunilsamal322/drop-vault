@@ -6,7 +6,7 @@ export default function secretRoutes(controller: SecretController): Router {
 
   router.post("/", controller.create);
 
-  router.get("/:id", controller.getById);
+  router.post("/:id", controller.getById);
 
   router.delete("/:id", controller.deleteById);
 

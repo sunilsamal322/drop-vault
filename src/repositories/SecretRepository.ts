@@ -5,4 +5,5 @@ export interface SecretRepository {
   findById(id: string): Promise<Secret | null>;
   update(secret: Secret): Promise<void>;
   deleteById(id: string): Promise<void>;
+  incrementViewCountIfAllowed(id: string): Promise<boolean>;
 }

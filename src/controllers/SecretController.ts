@@ -14,7 +14,7 @@ export default class SecretController {
 
   public getById = async (req: Request, res: Response): Promise<void> => {
     const { id } = paramsSchema.parse(req.params);
-    const { password } = querySchema.parse(req.query);
+    const { password } = querySchema.parse(req.body);
     const secret = await this.secretService.getById(id, password);
 
     res.json(secret);
@@ -22,7 +22,7 @@ export default class SecretController {
 
   public deleteById = async (req: Request, res: Response): Promise<void> => {
     const { id } = paramsSchema.parse(req.params);
-    const { password } = querySchema.parse(req.query);
+    const { password } = querySchema.parse(req.body);
     await this.secretService.deleteById(id, password);
 
     res.sendStatus(204);

@@ -92,4 +92,22 @@ export default class PostgresSecretRepository implements SecretRepository {
       [id],
     );
   }
+
+  public async incrementViewCountIfAllowed(id: string): Promise<boolean> {
+    const result = await this.db.query(
+      `
+    UPDATE secrets
+    SET view_count = view_count + 1
+    WHERE id = $1
+      AND (
+        max_views IS NULL
+        OR view_count < max_views
+      )
+    RETURNING id
+    `,
+      [id],
+    );
+
+    return (result.rowCount ?? 0) > 0;
+  }
 }

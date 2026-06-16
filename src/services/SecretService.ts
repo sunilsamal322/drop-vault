@@ -72,11 +72,9 @@ export default class SecretService {
       }
     }
 
-    secret.incrementViewCount();
-
-    await this.repository.update(secret);
-
-    if (secret.hasExceededViewLimit()) {
+    const viewCountIncremented =
+      await this.repository.incrementViewCountIfAllowed(id);
+    if (!viewCountIncremented) {
       throw new ViewLimitExceedError(id);
     }
 

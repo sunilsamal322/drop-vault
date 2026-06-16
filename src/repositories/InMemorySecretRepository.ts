@@ -22,4 +22,22 @@ export default class InMemorySecretRepository implements SecretRepository {
   public async deleteById(id: string): Promise<void> {
     this.secrets.delete(id);
   }
+
+  public async incrementViewCountIfAllowed(id: string): Promise<boolean> {
+    const secret = this.secrets.get(id);
+
+    if (!secret) {
+      return false;
+    }
+
+    if(secret.hasExceededViewLimit()) {
+      return false;
+    }
+
+    secret.incrementViewCount();
+
+    this.secrets.set(id, secret);
+
+    return true;
+  }
 }

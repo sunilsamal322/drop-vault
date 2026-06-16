@@ -74,10 +74,6 @@ export default class Secret {
       return false;
     }
 
-    return this.props.viewCount > this.props.maxViews;
-  }
-
-  public canBeAccessed(): boolean {
-    return !this.isExpired() && !this.hasExceededViewLimit();
+    return this.props.viewCount >= this.props.maxViews;
   }
 }

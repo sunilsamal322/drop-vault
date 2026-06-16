@@ -8,7 +8,7 @@ import SecretService from "./services/SecretService.js";
 import PostgresSecretRepository from "./repositories/PostgresSecretRepository.js";
 import AESEncryptionProvider from "./providers/AESEncryptionProvider.js";
 import BcryptPasswordHasher from "./providers/BcryptPasswordHasher.js";
-import errorHandler from "./middlewares/ErrorHandler.js";
+import errorHandler from "./middlewares/errorHandler.js";
 
 const app = express();
 
@@ -31,6 +31,12 @@ app.use("/api/secrets", secretRoutes(secretController));
 app.get("/health", (_, res) => {
   res.json({
     status: "ok",
+  });
+});
+
+app.use((req, res) => {
+  res.status(404).json({
+    message: `Route ${req.method} ${req.originalUrl} not found`,
   });
 });
 

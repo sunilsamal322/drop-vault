@@ -10,9 +10,18 @@ export default function errorHandler(
   next: NextFunction,
 ): void {
   if (error instanceof ZodError) {
+    const errors = error.issues.reduce(
+      (acc, issue) => {
+        const field = issue.path.join(".");
+        acc[field] = issue.message;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
+
     res.status(400).json({
       message: "Validation failed",
-      errors: error.flatten(),
+      errors,
     });
 
     return;
@@ -25,8 +34,6 @@ export default function errorHandler(
 
     return;
   }
-
-  console.error(error);
 
   res.status(500).json({
     message: "Internal Server Error",
