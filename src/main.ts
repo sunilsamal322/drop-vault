@@ -8,11 +8,19 @@ import SecretService from "./services/SecretService.js";
 import PostgresSecretRepository from "./repositories/PostgresSecretRepository.js";
 import AESEncryptionProvider from "./providers/AESEncryptionProvider.js";
 import BcryptPasswordHasher from "./providers/BcryptPasswordHasher.js";
-import errorHandler from "./middlewares/errorHandler.js";
+import errorHandler from "./middlewares/ErrorHandler.js";
+import requestLogger from "./middlewares/RequestLogger.js";
+import { logger } from "./configs/logger.js";
+import { rateLimiter } from "./middlewares/RateLimiter.js";
+import SecretCleanupJob from "./jobs/SecretCleanupJob.js";
 
 const app = express();
 
 app.use(express.json());
+
+app.use(requestLogger);
+
+app.use(rateLimiter);
 
 const repository = new PostgresSecretRepository(postgres);
 const encryptionProvider = new AESEncryptionProvider(env.ENCRYPTION_KEY!);
@@ -48,16 +56,31 @@ async function bootstrap(): Promise<void> {
   try {
     await postgres.query("SELECT 1");
 
-    console.log("Database connected");
+    logger.info("Datbase Connected");
 
     app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
+      logger.info(`Server is running on port ${PORT}`);
     });
   } catch (error) {
-    console.error("Failed to connect to database", error);
+    logger.error("Failed to connect to database");
 
     process.exit(1);
   }
 }
+
+const cleanupJob = new SecretCleanupJob(repository);
+
+try {
+  await cleanupJob.run();
+} catch (error) {
+  logger.error({ err: error }, "Failed to run cleanup job");
+}
+
+setInterval(
+  async () => {
+    await cleanupJob.run();
+  },
+  60 * 60 * 1000,
+);
 
 bootstrap();

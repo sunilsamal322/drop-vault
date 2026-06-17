@@ -110,4 +110,22 @@ export default class PostgresSecretRepository implements SecretRepository {
 
     return (result.rowCount ?? 0) > 0;
   }
+
+  public async deleteExpiredSecrets(): Promise<number> {
+    const result = await this.db.query(
+      `
+    DELETE FROM secrets
+    WHERE (
+      expires_at IS NOT NULL
+      AND expires_at < NOW()
+    )
+    OR (
+      max_views IS NOT NULL
+      AND view_count >= max_views
+    )
+    `,
+    );
+
+    return result.rowCount ?? 0;
+  }
 }

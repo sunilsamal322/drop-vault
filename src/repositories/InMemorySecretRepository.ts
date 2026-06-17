@@ -30,7 +30,7 @@ export default class InMemorySecretRepository implements SecretRepository {
       return false;
     }
 
-    if(secret.hasExceededViewLimit()) {
+    if (secret.hasExceededViewLimit()) {
       return false;
     }
 
@@ -39,5 +39,15 @@ export default class InMemorySecretRepository implements SecretRepository {
     this.secrets.set(id, secret);
 
     return true;
+  }
+
+  public async deleteExpiredSecrets(): Promise<number> {
+    const initialSize = this.secrets.size;
+    for (const [id, secret] of this.secrets.entries()) {
+      if (secret.isExpired() || secret.hasExceededViewLimit()) {
+        this.secrets.delete(id);
+      }
+    }
+    return initialSize - this.secrets.size;
   }
 }
