@@ -13,6 +13,8 @@ import requestLogger from "./middlewares/RequestLogger.js";
 import { logger } from "./configs/logger.js";
 import { rateLimiter } from "./middlewares/RateLimiter.js";
 import SecretCleanupJob from "./jobs/SecretCleanupJob.js";
+import SecretCleanupScheduler from "./schedulers/SecretCleanupScheduler.js";
+import HealthController from "./controllers/HealthController.js";
 
 const app = express();
 
@@ -33,14 +35,11 @@ const secretService = new SecretService(
 );
 
 const secretController = new SecretController(secretService);
+const healthController = new HealthController(postgres);
 
 app.use("/api/secrets", secretRoutes(secretController));
 
-app.get("/health", (_, res) => {
-  res.json({
-    status: "ok",
-  });
-});
+app.get("/health", healthController.check);
 
 app.use((req, res) => {
   res.status(404).json({
@@ -54,9 +53,9 @@ const PORT = env.PORT;
 
 async function bootstrap(): Promise<void> {
   try {
-    await postgres.query("SELECT 1");
+    await waitForDatabase();
 
-    logger.info("Datbase Connected");
+    logger.info("Database Connected");
 
     app.listen(PORT, () => {
       logger.info(`Server is running on port ${PORT}`);
@@ -68,19 +67,20 @@ async function bootstrap(): Promise<void> {
   }
 }
 
-const cleanupJob = new SecretCleanupJob(repository);
+async function waitForDatabase() {
+  for (let i = 1; i <= 10; i++) {
+    try {
+      await postgres.query("SELECT 1");
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
 
-try {
-  await cleanupJob.run();
-} catch (error) {
-  logger.error({ err: error }, "Failed to run cleanup job");
+  throw new Error("Database unavailable");
 }
 
-setInterval(
-  async () => {
-    await cleanupJob.run();
-  },
-  60 * 60 * 1000,
-);
+const cleanupJob = new SecretCleanupJob(repository);
+new SecretCleanupScheduler(cleanupJob).start();
 
 bootstrap();

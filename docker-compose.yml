@@ -3,23 +3,31 @@ services:
     build: .
     ports:
       - "3000:3000"
-    environment:
-      DB_HOTSt: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    env_file:
+      - .env.docker
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   postgres:
     image: postgres:15
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+    env_file:
+      - .env.docker
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     volumes:
       - db_data:/var/lib/postgresql/data
+  
+  migrate:
+    build: .
+    command: npm run migrate
+    env_file:
+      - .env.docker
+    depends_on:
+      postgres:
+        condition: service_healthy
 volumes:
   db_data:
