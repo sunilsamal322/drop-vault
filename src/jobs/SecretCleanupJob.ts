@@ -6,6 +6,6 @@ export default class SecretCleanupJob {
 
   public async run(): Promise<void> {
     const deletedCount = await this.repository.deleteExpiredSecrets();
-    logger.info(`SecretCleanupJob: Deleted ${deletedCount} expired secrets.`);
+    logger.info({ deletedCount }, "Cleanup job completed");
   }
 }

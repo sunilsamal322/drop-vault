@@ -15,6 +15,7 @@ import { rateLimiter } from "./middlewares/RateLimiter.js";
 import SecretCleanupJob from "./jobs/SecretCleanupJob.js";
 import SecretCleanupScheduler from "./schedulers/SecretCleanupScheduler.js";
 import HealthController from "./controllers/HealthController.js";
+import { redis } from "./configs/redis.js";
 
 const app = express();
 
@@ -53,9 +54,11 @@ const PORT = env.PORT;
 
 async function bootstrap(): Promise<void> {
   try {
-    await waitForDatabase();
+    await connectDatabase();
+    await connectRedis();
 
-    logger.info("Database Connected");
+    const cleanupJob = new SecretCleanupJob(repository);
+    new SecretCleanupScheduler(cleanupJob).start();
 
     app.listen(PORT, () => {
       logger.info(`Server is running on port ${PORT}`);
@@ -67,7 +70,7 @@ async function bootstrap(): Promise<void> {
   }
 }
 
-async function waitForDatabase() {
+async function waitForDatabase(): Promise<void> {
   for (let i = 1; i <= 10; i++) {
     try {
       await postgres.query("SELECT 1");
@@ -80,7 +83,29 @@ async function waitForDatabase() {
   throw new Error("Database unavailable");
 }
 
-const cleanupJob = new SecretCleanupJob(repository);
-new SecretCleanupScheduler(cleanupJob).start();
+async function connectDatabase(): Promise<void> {
+  await waitForDatabase();
+  logger.info("Database connected");
+}
+
+async function waitForRedis(): Promise<void> {
+  const maxRetries = 10;
+  for (let i = 1; i <= maxRetries; i++) {
+    try {
+      await redis.ping();
+      return;
+    } catch {
+      logger.warn({ attempt: i, maxRetries }, "Waiting for Redis...");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+
+  throw new Error("Redis unavailable");
+}
+
+async function connectRedis(): Promise<void> {
+  await waitForRedis();
+  logger.info("Redis connected");
+}
 
 bootstrap();

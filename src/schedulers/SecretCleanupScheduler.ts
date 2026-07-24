@@ -6,13 +6,13 @@ export default class SecretCleanupScheduler {
   constructor(private cleanupJob: SecretCleanupJob) {}
 
   public start(): void {
-    try {
-      cron.schedule("0 * * * *", async () => {
+    logger.info("Cleanup scheduler started");
+    cron.schedule("0 * * * *", async () => {
+      try {
         await this.cleanupJob.run();
-      });
-      logger.info("Cleanup cron job completed");
-    } catch (error) {
-      logger.error({ err: error }, "Cleanup cron job failed");
-    }
+      } catch (error) {
+        logger.error({ err: error }, "Cleanup job failed");
+      }
+    });
   }
 }
