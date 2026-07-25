@@ -1,21 +1,22 @@
 import "dotenv/config";
 import express from "express";
+import { startWorkers } from "./bullmq/workers/index.js";
 import { env } from "./configs/env.js";
-import { postgres } from "./database/postgres.js";
+import { logger } from "./configs/logger.js";
+import { redis } from "./configs/redis.js";
+import HealthController from "./controllers/HealthController.js";
 import SecretController from "./controllers/SecretController.js";
-import secretRoutes from "./routes/secretRoutes.js";
-import SecretService from "./services/SecretService.js";
-import PostgresSecretRepository from "./repositories/PostgresSecretRepository.js";
+import { postgres } from "./database/postgres.js";
+import SecretCleanupJob from "./jobs/SecretCleanupJob.js";
+import errorHandler from "./middlewares/ErrorHandler.js";
+import { rateLimiter } from "./middlewares/RateLimiter.js";
+import requestLogger from "./middlewares/RequestLogger.js";
 import AESEncryptionProvider from "./providers/AESEncryptionProvider.js";
 import BcryptPasswordHasher from "./providers/BcryptPasswordHasher.js";
-import errorHandler from "./middlewares/ErrorHandler.js";
-import requestLogger from "./middlewares/RequestLogger.js";
-import { logger } from "./configs/logger.js";
-import { rateLimiter } from "./middlewares/RateLimiter.js";
-import SecretCleanupJob from "./jobs/SecretCleanupJob.js";
+import PostgresSecretRepository from "./repositories/PostgresSecretRepository.js";
+import secretRoutes from "./routes/secretRoutes.js";
 import SecretCleanupScheduler from "./schedulers/SecretCleanupScheduler.js";
-import HealthController from "./controllers/HealthController.js";
-import { redis } from "./configs/redis.js";
+import SecretService from "./services/SecretService.js";
 
 const app = express();
 
@@ -57,8 +58,9 @@ async function bootstrap(): Promise<void> {
     await connectDatabase();
     await connectRedis();
 
-    const cleanupJob = new SecretCleanupJob(repository);
-    new SecretCleanupScheduler(cleanupJob).start();
+    startWorkers();
+
+    new SecretCleanupScheduler().start();
 
     app.listen(PORT, () => {
       logger.info(`Server is running on port ${PORT}`);
