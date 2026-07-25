@@ -27,6 +27,8 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
+    "@bull-board/api": "^8.3.0",
+    "@bull-board/express": "^8.3.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.81.1",
     "dotenv": "^17.4.2",
@@ -38,7 +40,7 @@
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
     "rate-limit-redis": "^6.0.0",
-    "uuid": "^14.0.0",
+    "uuid": "^14.0.1",
     "zod": "^4.4.3"
   }
 }

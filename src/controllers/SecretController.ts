@@ -18,7 +18,7 @@ export default class SecretController {
     const secret = await this.secretService.getById(id, password);
 
     res.json(secret);
-  }
+  };
 
   public deleteById = async (req: Request, res: Response): Promise<void> => {
     const { id } = paramsSchema.parse(req.params);
@@ -26,5 +26,5 @@ export default class SecretController {
     await this.secretService.deleteById(id, password);
 
     res.sendStatus(204);
-  }
+  };
 }

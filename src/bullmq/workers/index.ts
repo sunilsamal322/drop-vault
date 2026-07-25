@@ -11,26 +11,26 @@ export function startWorkers(): Worker[] {
 
   const worker = startCleanupWorker(cleanupJob);
 
-  worker.on("completed", (job) => {
-    logger.info(
-      {
-        jobId: job.id,
-        jobName: job.name,
-      },
-      "Job completed",
-    );
-  });
+  // worker.on("completed", (job) => {
+  //   logger.info(
+  //     {
+  //       jobId: job.id,
+  //       jobName: job.name,
+  //     },
+  //     "Job completed",
+  //   );
+  // });
 
-  worker.on("failed", (job, error) => {
-    logger.error(
-      {
-        jobId: job?.id,
-        jobName: job?.name,
-        err: error,
-      },
-      "Job failed",
-    );
-  });
+  // worker.on("failed", (job, error) => {
+  //   logger.error(
+  //     {
+  //       jobId: job?.id,
+  //       jobName: job?.name,
+  //       err: error,
+  //     },
+  //     "Job failed",
+  //   );
+  // });
 
   return [worker];
 }

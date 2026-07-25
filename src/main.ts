@@ -1,6 +1,5 @@
 import "dotenv/config";
 import express from "express";
-import { startWorkers } from "./bullmq/workers/index.js";
 import { env } from "./configs/env.js";
 import { logger } from "./configs/logger.js";
 import { redis } from "./configs/redis.js";
@@ -17,6 +16,8 @@ import secretRoutes from "./routes/secretRoutes.js";
 import SecretCleanupScheduler from "./schedulers/SecretCleanupScheduler.js";
 import SecretService from "./services/SecretService.js";
 import { registerShutdown } from "./bootstrap/shutdown.js";
+import { serverAdapter } from "./bullboard/index.js";
+import { initializeBullMq } from "./bullmq/index.js";
 
 const app = express();
 
@@ -41,6 +42,8 @@ const healthController = new HealthController(postgres);
 
 app.use("/api/secrets", secretRoutes(secretController));
 
+app.use("/admin/queues", serverAdapter.getRouter());
+
 app.get("/health", healthController.check);
 
 app.use((req, res) => {
@@ -58,7 +61,7 @@ async function bootstrap(): Promise<void> {
     await connectDatabase();
     await connectRedis();
 
-    const workers = startWorkers();
+    const { workers, queueEvents } = initializeBullMq();
 
     const cleanupScheduler = new SecretCleanupScheduler();
     cleanupScheduler.start();
@@ -67,9 +70,9 @@ async function bootstrap(): Promise<void> {
       logger.info(`Server is running on port ${PORT}`);
     });
 
-    registerShutdown(server, workers, cleanupScheduler);
+    registerShutdown({ server, workers, cleanupScheduler, queueEvents });
   } catch (error) {
-    logger.error("Failed to connect to database");
+    logger.error({ err: error }, "Failed to connect to database");
 
     process.exit(1);
   }

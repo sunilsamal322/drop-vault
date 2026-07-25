@@ -18,6 +18,7 @@ export function startCleanupWorker(cleanupJob: SecretCleanupJob): Worker {
     },
     {
       connection: bullMqConnection,
+      // concurrency: 5, // concurrent jobs can be processed at the same time
     },
   );
 }

@@ -1,4 +1,4 @@
-import type { Worker } from "bullmq";
+import type { QueueEvents, Worker } from "bullmq";
 import type { Server } from "http";
 import { logger } from "../configs/logger.js";
 import SecretCleanupScheduler from "../schedulers/SecretCleanupScheduler.js";
@@ -7,11 +7,17 @@ import { postgres } from "../database/postgres.js";
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
-export function registerShutdown(
-  server: Server,
-  workers: Worker[],
-  cleanupScheduler: SecretCleanupScheduler,
-): void {
+export function registerShutdown({
+  server,
+  workers,
+  cleanupScheduler,
+  queueEvents,
+}: {
+  server: Server;
+  workers: Worker[];
+  cleanupScheduler: SecretCleanupScheduler;
+  queueEvents: QueueEvents[];
+}): void {
   let shutdownInitiated = false;
 
   async function shutdown(signal: string): Promise<void> {
@@ -32,6 +38,8 @@ export function registerShutdown(
       try {
         logger.info("HTTP server closed");
 
+        cleanupScheduler.stop();
+
         await Promise.all(
           workers.map(async (worker) => {
             await worker.close();
@@ -45,7 +53,18 @@ export function registerShutdown(
           }),
         );
 
-        cleanupScheduler.stop();
+        await Promise.all(
+          queueEvents.map(async (queueEvent) => {
+            await queueEvent.close();
+
+            logger.info(
+              {
+                queue: queueEvent.name,
+              },
+              "QueueEvents closed",
+            );
+          }),
+        );
 
         await redis.quit();
 

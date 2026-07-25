@@ -24,5 +24,5 @@ export const rateLimiter = rateLimit({
       message: "Too many requests. Please try again later.",
     });
   },
-  skip: (req) => req.path === "/health",
+  skip: (req) => req.path === "/health" || req.path.startsWith("/admin/queues"),
 });
