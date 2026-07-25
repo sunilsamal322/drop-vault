@@ -3,8 +3,9 @@ import SecretCleanupJob from "../../jobs/SecretCleanupJob.js";
 import { postgres } from "../../database/postgres.js";
 import { logger } from "../../configs/logger.js";
 import PostgresSecretRepository from "../../repositories/PostgresSecretRepository.js";
+import type { Worker } from "bullmq";
 
-export function startWorkers(): void {
+export function startWorkers(): Worker[] {
   const repository = new PostgresSecretRepository(postgres);
   const cleanupJob = new SecretCleanupJob(repository);
 
@@ -30,4 +31,6 @@ export function startWorkers(): void {
       "Job failed",
     );
   });
+
+  return [worker];
 }

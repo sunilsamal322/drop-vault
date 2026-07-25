@@ -1,8 +1,10 @@
-import cron from "node-cron";
+import cron, { ScheduledTask } from "node-cron";
 import { logger } from "../configs/logger.js";
 import { CleanupProducer } from "../bullmq/producers/cleanupProducer.js";
 
 export default class SecretCleanupScheduler {
+  private task?: ScheduledTask;
+
   constructor(
     private readonly cleanupProducer: CleanupProducer = new CleanupProducer(),
   ) {}
@@ -10,7 +12,7 @@ export default class SecretCleanupScheduler {
   public start(): void {
     logger.info("Cleanup scheduler started");
 
-    cron.schedule("0 * * * *", async () => {
+    this.task = cron.schedule("0 * * * *", async () => {
       logger.info("Cron triggered");
       try {
         await this.cleanupProducer.enqueueExpiredSecrets();
@@ -20,5 +22,10 @@ export default class SecretCleanupScheduler {
         logger.error({ err: error }, "Failed to enqueue cleanup job");
       }
     });
+  }
+
+  public stop(): void {
+    this.task?.stop();
+    logger.info("Cleanup scheduler stopped");
   }
 }

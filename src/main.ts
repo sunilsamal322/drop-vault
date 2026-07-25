@@ -7,7 +7,6 @@ import { redis } from "./configs/redis.js";
 import HealthController from "./controllers/HealthController.js";
 import SecretController from "./controllers/SecretController.js";
 import { postgres } from "./database/postgres.js";
-import SecretCleanupJob from "./jobs/SecretCleanupJob.js";
 import errorHandler from "./middlewares/ErrorHandler.js";
 import { rateLimiter } from "./middlewares/RateLimiter.js";
 import requestLogger from "./middlewares/RequestLogger.js";
@@ -17,6 +16,7 @@ import PostgresSecretRepository from "./repositories/PostgresSecretRepository.js
 import secretRoutes from "./routes/secretRoutes.js";
 import SecretCleanupScheduler from "./schedulers/SecretCleanupScheduler.js";
 import SecretService from "./services/SecretService.js";
+import { registerShutdown } from "./bootstrap/shutdown.js";
 
 const app = express();
 
@@ -58,13 +58,16 @@ async function bootstrap(): Promise<void> {
     await connectDatabase();
     await connectRedis();
 
-    startWorkers();
+    const workers = startWorkers();
 
-    new SecretCleanupScheduler().start();
+    const cleanupScheduler = new SecretCleanupScheduler();
+    cleanupScheduler.start();
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       logger.info(`Server is running on port ${PORT}`);
     });
+
+    registerShutdown(server, workers, cleanupScheduler);
   } catch (error) {
     logger.error("Failed to connect to database");
 
