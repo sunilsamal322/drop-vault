@@ -1,22 +1,42 @@
+import { v4 as uuidv4 } from "uuid";
 import Secret from "../entities/Secret.js";
+import SecretFile from "../entities/SecretFile.js";
+import { SecretTypeEnum } from "../enums/SecretType.js";
+import InternalServerError from "../errors/InternalServerError.js";
 import InvalidPasswordError from "../errors/InvalidPasswordError.js";
 import SecretExpiredError from "../errors/SecretExpiredError.js";
 import SecretNotFoundError from "../errors/SecretNotFoundError.js";
 import ViewLimitExceedError from "../errors/ViewLimitExceedError.js";
 import { EncryptionProvider } from "../providers/EncryptionProvider.js";
 import { PasswordHasher } from "../providers/PasswordHasher.js";
+import StorageProvider from "../providers/StorageProvider.js";
+import { SecretFileRepository } from "../repositories/SecretFileRepository.js";
 import { SecretRepository } from "../repositories/SecretRepository.js";
+import { CreateFileSecretRequest } from "../requests/createFileSecretRequest.js";
 import { CreateSecretRequest } from "../requests/CreateSecretRequest.js";
-import { v4 as uuidv4 } from "uuid";
+
+type GetSecretResponse =
+  | {
+      type: SecretTypeEnum.TEXT;
+      content: string;
+    }
+  | {
+      type: SecretTypeEnum.FILE;
+      objectKey: string;
+    };
 
 export default class SecretService {
   constructor(
     private readonly repository: SecretRepository,
     private readonly encryptionProvider: EncryptionProvider,
     private readonly passwordHasher: PasswordHasher,
+    private readonly storageProvider: StorageProvider,
+    private readonly secretFileRepository: SecretFileRepository,
   ) {}
 
-  public async save(request: CreateSecretRequest): Promise<{ id: string }> {
+  public async createTextSecret(
+    request: CreateSecretRequest,
+  ): Promise<{ id: string }> {
     const encryptedContent = await this.encryptionProvider.encrypt(
       request.content,
     );
@@ -28,7 +48,7 @@ export default class SecretService {
 
     const secret = new Secret({
       id: uuidv4(),
-      type: request.type,
+      type: SecretTypeEnum.TEXT,
       encryptedContent: encryptedContent.encryptedContent,
       iv: encryptedContent.iv,
       authTag: encryptedContent.authTag,
@@ -46,7 +66,7 @@ export default class SecretService {
   public async getById(
     id: string,
     password?: string,
-  ): Promise<{ content: string } | null> {
+  ): Promise<GetSecretResponse> {
     const secret = await this.repository.findById(id);
 
     if (!secret) {
@@ -78,13 +98,31 @@ export default class SecretService {
       throw new ViewLimitExceedError(id);
     }
 
-    const decryptedContent = await this.encryptionProvider.decrypt(
-      secret.getEncryptedPayload(),
-    );
+    if (secret.getType() === SecretTypeEnum.TEXT) {
+      const encryptedPayload = secret.getEncryptedPayload();
 
-    return {
-      content: decryptedContent,
-    };
+      if (!encryptedPayload) {
+        throw new InternalServerError("Encrypted payload missing");
+      }
+
+      const decryptedContent =
+        await this.encryptionProvider.decrypt(encryptedPayload);
+
+      return {
+        content: decryptedContent,
+        type: SecretTypeEnum.TEXT,
+      };
+    } else {
+      const secretFile = await this.secretFileRepository.findBySecretId(id);
+      if (!secretFile) {
+        throw new InternalServerError("File metadata not found");
+      }
+
+      return {
+        objectKey: secretFile.getObjectKey(),
+        type: SecretTypeEnum.FILE,
+      };
+    }
   }
 
   public async deleteById(id: string, password?: string): Promise<void> {
@@ -110,5 +148,50 @@ export default class SecretService {
     }
 
     await this.repository.deleteById(id);
+  }
+
+  public async createFileSecret(
+    request: CreateFileSecretRequest,
+  ): Promise<{ id: string }> {
+    let passwordHash;
+    if (request.password) {
+      passwordHash = await this.passwordHasher.hash(request.password);
+    }
+
+    const secret = new Secret({
+      id: uuidv4(),
+      type: SecretTypeEnum.FILE,
+      createdAt: new Date(),
+      viewCount: 0,
+      expiresAt: request.expiresAt,
+      maxViews: request.maxViews,
+      passwordHash: passwordHash,
+    });
+
+    const { objectKey } = await this.storageProvider.uploadFile({
+      fileName: request.fileName,
+      contentType: request.contentType,
+      size: request.size,
+      stream: request.stream,
+    });
+
+    const secretFile = new SecretFile({
+      secretId: secret.getId(),
+      fileName: request.fileName,
+      objectKey: objectKey,
+      contentType: request.contentType,
+      size: request.size,
+      createdAt: new Date(),
+    });
+
+    try {
+      await this.repository.save(secret);
+      await this.secretFileRepository.save(secretFile);
+    } catch (error) {
+      await this.storageProvider.deleteFile(objectKey);
+      throw error;
+    }
+
+    return { id: secret.getId() };
   }
 }

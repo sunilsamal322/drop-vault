@@ -12,12 +12,14 @@ import requestLogger from "./middlewares/RequestLogger.js";
 import AESEncryptionProvider from "./providers/AESEncryptionProvider.js";
 import BcryptPasswordHasher from "./providers/BcryptPasswordHasher.js";
 import PostgresSecretRepository from "./repositories/PostgresSecretRepository.js";
+import PostgresSecretFileRepository from "./repositories/PostgresSecretFileRepository.js";
 import secretRoutes from "./routes/secretRoutes.js";
 import SecretCleanupScheduler from "./schedulers/SecretCleanupScheduler.js";
 import SecretService from "./services/SecretService.js";
 import { registerShutdown } from "./bootstrap/shutdown.js";
 import { serverAdapter } from "./bullboard/index.js";
 import { initializeBullMq } from "./bullmq/index.js";
+import { LocalStorageProvider } from "./providers/LocalStorageProvider.js";
 
 const app = express();
 
@@ -31,10 +33,15 @@ const repository = new PostgresSecretRepository(postgres);
 const encryptionProvider = new AESEncryptionProvider(env.ENCRYPTION_KEY!);
 const passwordHasher = new BcryptPasswordHasher();
 
+const storageProvider = new LocalStorageProvider('./uploads');
+const secretFileRepository = new PostgresSecretFileRepository(postgres);
+
 const secretService = new SecretService(
   repository,
   encryptionProvider,
   passwordHasher,
+  storageProvider,
+  secretFileRepository,
 );
 
 const secretController = new SecretController(secretService);

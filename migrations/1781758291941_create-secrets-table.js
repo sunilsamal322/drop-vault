@@ -10,15 +10,12 @@ export const up = (pgm) => {
     },
     encrypted_content: {
       type: "text",
-      notNull: true,
     },
     iv: {
       type: "text",
-      notNull: true,
     },
     auth_tag: {
       type: "text",
-      notNull: true,
     },
     expires_at: {
       type: "timestamptz",

@@ -3,9 +3,9 @@ import { SecretTypeEnum } from "../enums/SecretType.js";
 interface SecretProps {
   id: string;
   type: SecretTypeEnum;
-  encryptedContent: string;
-  iv: string;
-  authTag: string;
+  encryptedContent?: string;
+  iv?: string;
+  authTag?: string;
   createdAt: Date;
   viewCount: number;
   passwordHash?: string;
@@ -37,7 +37,15 @@ export default class Secret {
     return this.props.type;
   }
 
-  public getEncryptedPayload(): EncryptedPayload {
+  public getEncryptedPayload(): EncryptedPayload | null {
+    if (this.props.type !== SecretTypeEnum.TEXT) {
+      return null;
+    }
+
+    if (!this.props.encryptedContent || !this.props.iv || !this.props.authTag) {
+      throw new Error("Encrypted payload is missing for the secret");
+    }
+
     return {
       encryptedContent: this.props.encryptedContent,
       iv: this.props.iv,

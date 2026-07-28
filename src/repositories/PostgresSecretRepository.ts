@@ -30,9 +30,9 @@ export default class PostgresSecretRepository implements SecretRepository {
       [
         secret.getId(),
         secret.getType(),
-        payload.encryptedContent,
-        payload.iv,
-        payload.authTag,
+        payload?.encryptedContent || null,
+        payload?.iv || null,
+        payload?.authTag || null,
         secret.getPasswordHash(),
         secret.getViewCount(),
         secret.getMaxViews(),

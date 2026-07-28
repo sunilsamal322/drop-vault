@@ -1,10 +1,6 @@
 import { z } from "zod";
-import { SecretTypeEnum } from "../enums/SecretType.js";
 
 export const createSecretSchema = z.object({
-  type: z.enum(Object.values(SecretTypeEnum), {
-    message: `Type must be one of: ${Object.values(SecretTypeEnum).join(", ")}`,
-  }),
   content: z
     .string()
     .min(1, { message: "Content must be at least 1 character long" })
